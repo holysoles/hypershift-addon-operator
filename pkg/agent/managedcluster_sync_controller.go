@@ -45,8 +45,9 @@ type LabelAgent struct {
 
 // SetupWithManager sets up the controller with the Manager.
 func (c *LabelAgent) SetupWithManager(mgr ctrl.Manager) error {
+	// ManagedClusters exist only on the hub; the local MC manager cannot watch them.
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&clusterv1.ManagedCluster{}, builder.WithPredicates(labelEventFilters())).
+		Named(util.LabelAgentName).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 1}).
 		WatchesRawSource(
 			source.Kind(c.hubCache, &clusterv1.ManagedCluster{},
@@ -576,43 +577,6 @@ func (c *LabelAgent) getSpokeMCName(hubMCName string) string {
 // getHubMCName returns the hub ManagedCluster name for a given spoke MC name.
 func (c *LabelAgent) getHubMCName(spokeMCName string) string {
 	return getDiscoveredClusterName(c.clusterName, spokeMCName, c.log)
-}
-
-// labelEventFilters filters spoke ManagedCluster events to only process hosted clusters.
-// Triggers on label changes, tracking annotation changes, or created-via annotation changes.
-func labelEventFilters() predicate.Predicate {
-	return predicate.Funcs{
-		CreateFunc: func(e event.CreateEvent) bool {
-			mc, ok := e.Object.(*clusterv1.ManagedCluster)
-			if !ok {
-				return false
-			}
-			return mc.Annotations[createdViaAnno] == createdViaHypershift
-		},
-		UpdateFunc: func(e event.UpdateEvent) bool {
-			mc, ok := e.ObjectNew.(*clusterv1.ManagedCluster)
-			if !ok {
-				return false
-			}
-			if mc.Annotations[createdViaAnno] != createdViaHypershift {
-				return false
-			}
-			if !maps.Equal(e.ObjectOld.GetLabels(), e.ObjectNew.GetLabels()) {
-				return true
-			}
-			oldAnno := e.ObjectOld.GetAnnotations()
-			newAnno := e.ObjectNew.GetAnnotations()
-			return oldAnno[propagatedLabelAnnotation] != newAnno[propagatedLabelAnnotation] ||
-				oldAnno[hcPropagatedLabelAnnotation] != newAnno[hcPropagatedLabelAnnotation] ||
-				oldAnno[createdViaAnno] != newAnno[createdViaAnno]
-		},
-		DeleteFunc: func(e event.DeleteEvent) bool {
-			return false
-		},
-		GenericFunc: func(e event.GenericEvent) bool {
-			return false
-		},
-	}
 }
 
 // hcLabelEventFilters filters HostedCluster events to trigger on label changes

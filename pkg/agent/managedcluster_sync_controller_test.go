@@ -10,7 +10,6 @@ import (
 	"github.com/stolostron/hypershift-addon-operator/pkg/util"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -1003,69 +1002,6 @@ func TestMapHCToSpokeMC(t *testing.T) {
 }
 
 // --- Predicate tests ---
-
-func TestLabelEventFilters(t *testing.T) {
-	pred := labelEventFilters()
-
-	hosted := &clusterv1.ManagedCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        "hcp-cluster",
-			Annotations: map[string]string{createdViaAnno: createdViaHypershift},
-			Labels:      map[string]string{"env": "prod"},
-		},
-	}
-	nonHosted := &clusterv1.ManagedCluster{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:   "regular",
-			Labels: map[string]string{"env": "prod"},
-		},
-	}
-
-	t.Run("Create accepts hosted MC", func(t *testing.T) {
-		assert.True(t, pred.Create(event.CreateEvent{Object: hosted}))
-	})
-	t.Run("Create rejects non-hosted MC", func(t *testing.T) {
-		assert.False(t, pred.Create(event.CreateEvent{Object: nonHosted}))
-	})
-	t.Run("Update accepts label change", func(t *testing.T) {
-		old := hosted.DeepCopy()
-		old.Labels = map[string]string{"env": "staging"}
-		assert.True(t, pred.Update(event.UpdateEvent{ObjectOld: old, ObjectNew: hosted}))
-	})
-	t.Run("Update rejects no change", func(t *testing.T) {
-		assert.False(t, pred.Update(event.UpdateEvent{ObjectOld: hosted.DeepCopy(), ObjectNew: hosted}))
-	})
-	t.Run("Update rejects non-hosted MC", func(t *testing.T) {
-		old := nonHosted.DeepCopy()
-		old.Labels = map[string]string{"env": "staging"}
-		assert.False(t, pred.Update(event.UpdateEvent{ObjectOld: old, ObjectNew: nonHosted}))
-	})
-	t.Run("Update accepts propagated-labels annotation removed", func(t *testing.T) {
-		old := hosted.DeepCopy()
-		old.Annotations[propagatedLabelAnnotation] = testAnnotationEnvTeam
-		assert.True(t, pred.Update(event.UpdateEvent{ObjectOld: old, ObjectNew: hosted}))
-	})
-	t.Run("Update accepts hc-propagated-labels annotation removed", func(t *testing.T) {
-		old := hosted.DeepCopy()
-		old.Annotations[hcPropagatedLabelAnnotation] = "env"
-		assert.True(t, pred.Update(event.UpdateEvent{ObjectOld: old, ObjectNew: hosted}))
-	})
-	t.Run("Update accepts created-via annotation added", func(t *testing.T) {
-		old := hosted.DeepCopy()
-		delete(old.Annotations, createdViaAnno)
-		assert.True(t, pred.Update(event.UpdateEvent{ObjectOld: old, ObjectNew: hosted}))
-	})
-	t.Run("Create rejects non-MC object", func(t *testing.T) {
-		pod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Name: "pod"}}
-		assert.False(t, pred.Create(event.CreateEvent{Object: pod}))
-	})
-	t.Run("Delete returns false", func(t *testing.T) {
-		assert.False(t, pred.Delete(event.DeleteEvent{Object: hosted}))
-	})
-	t.Run("Generic returns false", func(t *testing.T) {
-		assert.False(t, pred.Generic(event.GenericEvent{Object: hosted}))
-	})
-}
 
 func TestHCLabelEventFilters(t *testing.T) {
 	pred := hcLabelEventFilters()

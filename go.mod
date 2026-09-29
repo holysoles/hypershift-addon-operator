@@ -32,7 +32,7 @@ require (
 	k8s.io/client-go v0.35.0-alpha.0
 	k8s.io/component-base v0.35.0-alpha.0
 	k8s.io/utils v0.0.0-20260108192941-914a6e750570
-	open-cluster-management.io/addon-framework v0.12.0
+	open-cluster-management.io/addon-framework v0.12.1-0.20260929175657-a18247e65f76
 	open-cluster-management.io/api v0.16.2
 	sigs.k8s.io/controller-runtime v0.22.4
 )
